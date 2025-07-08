@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+import sys
+import re
 import requests
 from bs4 import BeautifulSoup
-import re
-import sys
+from playwright.sync_api import sync_playwright
 
 COMEDY_FILE = 'comedy.txt'
 OUTPUT_FILE  = 'playlist.m3u'
@@ -17,6 +18,22 @@ def read_urls(fname):
     except FileNotFoundError:
         print(f"Arquivo {fname} nÃ£o encontrado.")
         sys.exit(1)
+
+def fetch_video_urls_with_playwright(page_url):
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        page = browser.new_page()
+        page.goto(page_url)
+        # Clicar no botÃ£o PLAY para carregar o iframe
+        page.click('button.section__view')
+        page.wait_for_selector('iframe.iframe-fix', timeout=10000)
+        iframe = page.query_selector('iframe.iframe-fix')
+        src = iframe.get_attribute('src')
+        iframe_url = src if src.startswith('http') else 'https:' + src
+        browser.close()
+        r2 = requests.get(iframe_url)
+        r2.raise_for_status()
+        return re.findall(r'https?://[^"\']+\.mp4', r2.text)
 
 def extract_from_page(page_url):
     resp = requests.get(page_url)
@@ -32,25 +49,10 @@ def extract_from_page(page_url):
 
     # capa
     img = soup.select_one('.card__cover img')
-    poster = img['src'] if img and img.has_attr('src') else None
+    poster = img.get('src') if img and img.has_attr('src') else None
 
-    # pegar iframe(s)
-    videos = []
-    for iframe in soup.select('iframe.iframe-fix'):
-        src = iframe.get('src')
-        if not src:
-            continue
-        url_iframe = src if src.startswith('http') else 'https:' + src
-        r2 = requests.get(url_iframe)
-        r2.raise_for_status()
-        for link in re.findall(r'https?://[^"\']+\.mp4', r2.text):
-            if link not in videos:
-                videos.append(link)
-            if len(videos) >= 2:
-                break
-        if len(videos) >= 2:
-            break
-
+    # vÃ­deos via Playwright
+    videos = fetch_video_urls_with_playwright(page_url)[:2]
     return title, year, poster, videos
 
 def generate_m3u(urls):
