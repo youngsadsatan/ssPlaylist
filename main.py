@@ -8,8 +8,7 @@ import sys
 
 COMEDY_FILE = 'comedy.txt'
 OUTPUT_FILE  = 'playlist.m3u'
-M3U_HEADER   = '#EXTM3U
-'
+M3U_HEADER   = '#EXTM3U'
 
 def read_urls(fname):
     try:
