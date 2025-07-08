@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import sys
-import yt_dlp
+import yt-dlp
 import re
 
 MOVIES_FILE = 'comedy.txt'
