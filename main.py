@@ -8,8 +8,8 @@ from bs4 import BeautifulSoup
 from playwright.sync_api import sync_playwright
 
 COMEDY_FILE = 'comedy.txt'
-OUTPUT_FILE  = 'playlist.m3u'
-M3U_HEADER   = '#EXTM3U\n'
+OUTPUT_FILE = 'playlist.m3u'
+M3U_HEADER = '#EXTM3U\n'
 
 def read_urls(fname):
     try:
@@ -23,16 +23,20 @@ def fetch_video_urls_with_playwright(page_url):
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
         page = browser.new_page()
-        page.goto(page_url)
-        # Clicar no botÃ£o PLAY para carregar o iframe
-        page.click('button.section__view')
-        page.wait_for_selector('iframe.iframe-fix', timeout=10000)
+        # Navegar e aguardar a pÃ¡gina carregar seus scripts
+        page.goto(page_url, wait_until='networkidle')
+        # Esperar o iframe estar presente no DOM (mesmo que oculto)
         iframe = page.query_selector('iframe.iframe-fix')
+        if not iframe:
+            print(f"  Aviso: iframe nao encontrado em {page_url}")
+            browser.close()
+            return []
         src = iframe.get_attribute('src')
-        iframe_url = src if src.startswith('http') else 'https:' + src
+        url_iframe = src if src.startswith('http') else 'https:' + src
         browser.close()
-        r2 = requests.get(iframe_url)
+        r2 = requests.get(url_iframe)
         r2.raise_for_status()
+        # Encontrar links .mp4 no HTML do iframe
         return re.findall(r'https?://[^"\']+\.mp4', r2.text)
 
 def extract_from_page(page_url):
@@ -51,7 +55,7 @@ def extract_from_page(page_url):
     img = soup.select_one('.card__cover img')
     poster = img.get('src') if img and img.has_attr('src') else None
 
-    # vÃ­deos via Playwright
+    # extrair vÃ­deos via Playwright
     videos = fetch_video_urls_with_playwright(page_url)[:2]
     return title, year, poster, videos
 
@@ -73,7 +77,7 @@ def generate_m3u(urls):
 
 def main():
     urls = read_urls(COMEDY_FILE)
-    m3u  = generate_m3u(urls)
+    m3u = generate_m3u(urls)
     with open(OUTPUT_FILE, 'w', encoding='utf-8') as f:
         f.write(m3u)
     print(f'Playlist gerada em {OUTPUT_FILE}')
