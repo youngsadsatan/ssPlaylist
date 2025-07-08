@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 
 import sys
-import yt-dlp
 import re
+import yt_dlp
 
 MOVIES_FILE = 'comedy.txt'
 OUTPUT_FILE = 'playlist.m3u'
@@ -21,23 +22,18 @@ def extract_with_ytdlp(url):
     }
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(url, download=False)
-        # URL principal
-        primary_url = info.get('url')
-        # fallback: primeira format mp4 disponÃ­vel
-        fallback_url = None
-        formats = info.get('formats') or []
-        for fmt in formats:
-            if fmt.get('ext') == 'mp4' and fmt.get('url') != primary_url:
-                fallback_url = fmt.get('url')
-                break
-        # metadata
-        title = info.get('title') or url
-        # tentar extrair ano do tÃ­tulo
-        year_match = re.search(r'\((\d{4})\)', title)
-        year = year_match.group(1) if year_match else None
-        # thumbnail
-        thumb = info.get('thumbnail')
-        return title, year, thumb, [u for u in (primary_url, fallback_url) if u]
+    primary_url = info.get('url')
+    fallback_url = None
+    for fmt in info.get('formats', []):
+        if fmt.get('ext') == 'mp4' and fmt.get('url') != primary_url:
+            fallback_url = fmt.get('url')
+            break
+    title = info.get('title') or url
+    year_match = re.search(r'', title)
+    year = year_match.group(1) if year_match else None
+    thumb = info.get('thumbnail')
+    urls = [u for u in (primary_url, fallback_url) if u]
+    return title, year, thumb, urls
 
 def generate_m3u(entries):
     lines = [M3U_HEADER]
@@ -54,7 +50,7 @@ def main():
     try:
         urls = read_urls(MOVIES_FILE)
     except FileNotFoundError:
-        print(f"Arquivo {MOVIES_FILE} nao encontrado.")
+        print(f"Arquivo {MOVIES_FILE} não encontrado.")
         sys.exit(1)
 
     entries = []
@@ -69,9 +65,9 @@ def main():
         except Exception as e:
             print(f"  Erro em {url}: {e}")
 
-    m3u = generate_m3u(entries)
+    playlist = generate_m3u(entries)
     with open(OUTPUT_FILE, 'w', encoding='utf-8') as f:
-        f.write(m3u)
+        f.write(playlist)
     print(f"Arquivo {OUTPUT_FILE} gerado.")
 
 if __name__ == '__main__':
